@@ -18,8 +18,8 @@ The recommended Gemini install location is /usr/local/share/gemini.
 """
 
 anno_files = \
-['dbsnp.138.vcf.gz',
-'clinvar_20140303.vcf.gz',
+['dbsnp.hg19.b141.vcf.gz',
+'clinvar_20140807.vcf.gz',
 '29way_pi_lods_elements_12mers.chr_specific.fdr_0.1_with_scores.txt.hg19.merged.bed.gz',
 'hg19.CpG.bed.gz',
 'hg19.pfam.ucscgenes.bed.gz',
@@ -46,22 +46,27 @@ anno_files = \
 'hprd_interaction_graph',
 'cse-hiseq-8_4-2013-02-20.bed.gz',
 'hg19.vista.enhancers.20131108.bed.gz',
-'hg19.cosmic.v67.20131024.gz',
+'cosmic-v68-GRCh37.vcf.gz',
 'detailed_gene_table_v75',
 'summary_gene_table_v75',
-'cancer_gene_census.20140120.tsv'
+'cancer_gene_census.20140120.tsv',
+'hg19_fitcons_fc-i6-0_V1-01.bw'
 ]
 extra_anno_files = {"gerp_bp": "hg19.gerp.bw", "cadd_score": "whole_genome_SNVs.tsv.compressed.gz"}
+
+custom_downloads = {"hg19_fitcons_fc-i6-0_V1-01.bw":
+                    "http://compgen.bscb.cornell.edu/fitCons/0downloads/tracks/V1.01/i6/scores/fc-i6-0.bw"}
 
 toadd_anno_files = []
 
 anno_versions = {
     "GRCh37-gms-mappability.vcf.gz": 2,
-    "dbsnp.138.vcf.gz": 2,
-    "clinvar_20140303.vcf.gz": 3,
+    "dbsnp.hg19.b141.vcf.gz": 3,
+    "clinvar_20140807.vcf.gz": 4,
     "hg19.rmsk.bed.gz": 2,
     "detailed_gene_table_v75": 2,
-    "summary_gene_table_v75": 2}
+    "summary_gene_table_v75": 2,
+    "cosmic-v68-GRCh37.vcf.gz": 2}
 
 def install_annotation_files(anno_root_dir, dl_files=False, extra=None):
     """Download required annotation files.
@@ -117,17 +122,19 @@ def _download_anno_files(base_url, file_names, anno_dir, cur_config):
         else:
             dls = [orig]
         for dl in dls:
-            url = "{base_url}/{fname}".format(fname=dl, base_url=base_url)
-            _download_to_dir(url, anno_dir, anno_versions.get(orig, 1),
+            if dl in custom_downloads:
+                url = custom_downloads[dl]
+            else:
+                url = "{base_url}/{fname}".format(fname=dl, base_url=base_url)
+            _download_to_dir(url, dl, anno_dir, anno_versions.get(orig, 1),
                              cur_config.get("versions", {}).get(orig, 1))
 
-def _download_to_dir(url, dirname, version, cur_version):
+def _download_to_dir(url, out_fname, dirname, version, cur_version):
     """
     Grab an annotation file and place in /usr/share/gemini/data
     """
     print "* downloading " + url + " to " + dirname + "\n"
-    stub = os.path.basename(url)
-    dest = os.path.join(dirname, stub)
+    dest = os.path.join(dirname, out_fname)
     if not os.path.exists(dest) or version > cur_version:
         # download data file to staging directory instead of current
         # direction which may not have space
@@ -140,23 +147,23 @@ def _download_to_dir(url, dirname, version, cur_version):
         max_retries = 2
         retries = 0
         while 1:
-            cmd = ["curl", "-C", "-", "-OL", url]
+            cmd = ["curl", "-C", "-", "-L", "-o", out_fname, url]
             retcode = subprocess.call(cmd)
             if retcode == 0:
                 break
             else:
                 print "Curl failed with non-zero exit code %s. Retrying" % retcode
                 if retries >= max_retries:
-                    raise
+                    raise ValueError("Failed to download with curl")
                 time.sleep(10)
                 retries += 1
-        with open(stub) as in_handle:
+        with open(out_fname) as in_handle:
             line1 = in_handle.readline()
             line2 = in_handle.readline()
             if "?xml" in line1 and "Error" in line2 and "AccessDenied" in line2:
                 raise ValueError("Could not download annotation file. Permission denied error: %s" % url)
         # move to system directory (/usr/share/gemini/data) and remove from pwd
-        shutil.move(stub, dest)
+        shutil.move(out_fname, dest)
         os.chdir(orig_dir)
 
 if __name__ == "__main__":

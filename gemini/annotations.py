@@ -19,8 +19,8 @@ def get_anno_files( args ):
     annos = {
      'pfam_domain': os.path.join(anno_dirname, 'hg19.pfam.ucscgenes.bed.gz'),
      'cytoband': os.path.join(anno_dirname, 'hg19.cytoband.bed.gz'),
-     'dbsnp': os.path.join(anno_dirname, 'dbsnp.138.vcf.gz'),
-     'clinvar': os.path.join(anno_dirname, 'clinvar_20140303.vcf.gz'),
+     'dbsnp': os.path.join(anno_dirname, 'dbsnp.hg19.b141.vcf.gz'),
+     'clinvar': os.path.join(anno_dirname, 'clinvar_20140807.vcf.gz'),
      'gwas': os.path.join(anno_dirname, 'hg19.gwas.bed.gz'),
      'rmsk': os.path.join(anno_dirname, 'hg19.rmsk.bed.gz'),
      'segdup': os.path.join(anno_dirname, 'hg19.segdup.bed.gz'),
@@ -45,7 +45,8 @@ def get_anno_files( args ):
                                            'encode.6celltypes.consensus.bedg.gz'),
      'gerp_elements': os.path.join(anno_dirname, 'hg19.gerp.elements.bed.gz'),
      'vista_enhancers': os.path.join(anno_dirname, 'hg19.vista.enhancers.20131108.bed.gz'),
-     'cosmic': os.path.join(anno_dirname, 'hg19.cosmic.v67.20131024.gz')
+     'fitcons': os.path.join(anno_dirname, "hg19_fitcons_fc-i6-0_V1-01.bw"),
+     'cosmic': os.path.join(anno_dirname, 'cosmic-v68-GRCh37.vcf.gz')
     }
     # optional annotations
     if os.path.exists(os.path.join(anno_dirname, 'hg19.gerp.bw')):
@@ -152,6 +153,8 @@ ThousandGInfo = collections.namedtuple("ThousandGInfo",
                                         aaf_ASN \
                                         aaf_AFR \
                                         aaf_EUR")
+
+GmsTechs = collections.namedtuple("GmsTechs", "illumina solid iontorrent")
 
 def load_annos( args ):
     """
@@ -378,6 +381,17 @@ def get_vista_enhancers(var):
         vista_enhancers.append(hit[4])
     return ",".join(vista_enhancers) if len(vista_enhancers) > 0 else None
 
+def get_fitcons(var):
+    chrom, start, end = _get_var_coords(var, "ucsc")
+    anno = annos["fitcons"]
+    try:
+        summary = anno.summarize(str(chrom), start, end, end - start)
+        if summary.max_val[0] >= 0:
+            return summary.max_val[0]
+        else:
+            return None
+    except AttributeError:
+        return None
 
 def get_cadd_scores(var):
     """
@@ -437,7 +451,7 @@ def get_cosmic_info(var):
     """
     # report the first overlapping ClinVar variant Most often, just one).
     cosmic_ids = []
-    for hit in annotations_in_region(var, "cosmic", "vcf", "ucsc"):
+    for hit in annotations_in_region(var, "cosmic", "vcf", "grch37"):
         cosmic_ids.append(hit.id)
     return ",".join(cosmic_ids) if len(cosmic_ids) > 0 else None
 
@@ -673,7 +687,6 @@ def get_gms(var):
     """Return Genome Mappability Scores for multiple technologies.
     """
     techs = ["illumina", "solid", "iontorrent"]
-    GmsTechs = collections.namedtuple("GmsTechs", techs)
     hit = _get_first_vcf_hit(
         annotations_in_region(var, "gms", "vcf", "grch37"))
     attr_map = _get_vcf_info_attrs(hit) if hit is not None else {}

@@ -136,6 +136,7 @@ def main():
         gemini_load.load(parser, args)
 
     parser_load.set_defaults(func=load_fn)
+
     #########################################
     # $ gemini amend
     #########################################
@@ -838,6 +839,37 @@ def main():
         tool_de_novo_mutations.run(parser, args)
     parser_de_novo.set_defaults(func=de_novo_fn)
 
+
+    #########################################
+    # $ gemini mendel violations
+    #########################################
+    parser_mendel = subparsers.add_parser('mendel_errors',
+            help='Identify candidate violations of Mendelian inheritance')
+    parser_mendel.add_argument('db',
+            metavar='db',
+            help='The name of the database to be queried.')
+    parser_mendel.add_argument('--columns',
+            dest='columns',
+            metavar='STRING',
+            help='A list of columns that you would like returned. Def. = "*"',
+            )
+    parser_mendel.add_argument('--filter',
+            dest='filter',
+            metavar='STRING',
+            help='Restrictions to apply to variants (SQL syntax)')
+    parser_mendel.add_argument('-d',
+            dest='min_sample_depth',
+            type=int,
+            help="The minimum aligned\
+                  sequence depth (genotype DP) req'd for\
+                  each sample (def. = 0)",
+            default=0)
+    def mendel_fn(parser, args):
+        import tool_mendel_errors
+        tool_mendel_errors.run(parser, args)
+    parser_mendel.set_defaults(func=mendel_fn)
+
+
     #########################################
     # $ gemini browser
     #########################################
@@ -1008,6 +1040,27 @@ def main():
         from tool_homozygosity_runs import run
         run(parser, args)
     parser_hom_run.set_defaults(func=homozygosity_runs_fn)
+    
+
+    #########################################
+    # $ gemini fusions
+    #########################################
+    parser_fusions = subparsers.add_parser('fusions',
+                                         help="Identify somatic fusion genes from a GEMINI database.")
+    parser_fusions.add_argument('db',
+                              metavar='db',
+                              help='The name of the database to be queried.')
+    parser_fusions.add_argument('--sample',
+                              metavar='sample',
+                              default=None,
+                              help='New sample information file to load')
+    def fusions_fn(parser, args):
+        from tool_fusions import run
+        run(parser, args)
+    parser_fusions.set_defaults(func=fusions_fn)
+
+
+
     #######################################################
     # parse the args and call the selected function
     #######################################################
